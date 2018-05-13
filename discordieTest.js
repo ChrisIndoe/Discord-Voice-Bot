@@ -34,7 +34,12 @@ client.Dispatcher.on("MESSAGE_CREATE", e => {
 		vjoin(e.message);
 	}
 	if(e.message.content.indexOf("!play") == 0) {
-		play(e.message);
+		if(!client.VoiceConnections.length) {
+			vAutoJoinAndPlay(e.message);
+		}
+		else{
+			play(e.message);
+		}
 	}
 	if(e.message.content == "!audiolist"){
 		audiolist(e.message);
@@ -44,20 +49,41 @@ client.Dispatcher.on("MESSAGE_CREATE", e => {
 
 function vjoin(message){
 	const targetChannel = message.content.replace("!vjoin ", "");
-		message.channel.sendMessage("Joining Channel: "+ targetChannel);
+	message.channel.sendMessage("Joining Channel: "+ targetChannel);
 
-		message.channel.guild.voiceChannels
-		.forEach(channel => {
-			if(channel.name.toLowerCase().indexOf(targetChannel) >= 0)
-				channel.join();
-		});
+	message.channel.guild.voiceChannels
+	.forEach(channel => {
+		if(channel.name.toLowerCase().indexOf(targetChannel) >= 0)
+			channel.join();
+	});
+
+
+
+
 }
+
+function vAutoJoinAndPlay(message){
+	message.channel.guild.voiceChannels.forEach(vChannel => 
+		{
+			vChannel.members.forEach( member => {
+				if(member.id == message.member.id){
+					vChannel.join().then((e) => {
+						play(message);
+						//vleave(message);
+					});
+				}
+			})	
+		}
+	)
+}
+
 
 function vleave(message){
 	var c = message.channel;
   console.log("Leaving vchannel");
+  
 	client.Channels
-	.filter(channel => channel.type == "voice")
+	.filter(channel => channel.type == 2)
 	.forEach(channel => {
 		if(channel.joined)
 			channel.leave();
@@ -65,8 +91,13 @@ function vleave(message){
 }
 
 var stopPlaying = false;
+
+
+
 function play(message) {
 	stopPlaying = false;
+
+	
 	if(!client.VoiceConnections.length) {
 		return message.reply("Not connected to any channel");
 	}
@@ -77,7 +108,8 @@ function play(message) {
 
 	if(file == undefined)
 	{
-		message.reply("Audio Clip " + playCommand + " Not Found")
+		message.reply("Audio Clip " + playCommand + " Not Found");
+		return;
 	}
 
 	var mp3decoder = new lame.Decoder();
@@ -106,6 +138,7 @@ function play(message) {
 				return console.log("Voice not connected");
 			}
 
+
 			var voiceConnection = client.VoiceConnections[0].voiceConnection;
 
 			// one encoder per voice connection
@@ -114,16 +147,22 @@ function play(message) {
 			const needBuffer = () => encoder.onNeedBuffer();
 			encoder.onNeedBuffer = function() {
 				var chunk = mp3decoder.read(readSize);
-				if (stopPlaying) return;
-
+				if (stopPlaying) 
+				{
+					vleave(message);
+					return;
+				}
 				// delay the packet if no data buffered
 				if (!chunk) return setTimeout(needBuffer, options.frameDuration);
 
 				var sampleCount = readSize / pcmfmt.channels / (pcmfmt.bitDepth / 8);
 				encoder.enqueue(chunk, sampleCount);
 			};
-
 			needBuffer();
+		});
+		mp3decoder.once('end', function(){
+			setTimeout(function(){vleave(message);}, 500);
+			
 		});
 	}
 }
