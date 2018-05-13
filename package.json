@@ -1,0 +1,14 @@
+{
+    "name": "discordiebot",
+    "version":"1.0.0",
+    "main":"./discordieTest.js",
+
+    "dependencies": {
+        "lame": "~1.2.4",
+        "discordie": "~0.11.0"
+    },
+    "engineStrict":true,
+    "engines":{
+        "node":">=4.0.0"
+    }
+}
