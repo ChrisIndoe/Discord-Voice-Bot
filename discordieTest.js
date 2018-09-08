@@ -6,7 +6,27 @@ var fs = require('fs');
 var config = JSON.parse(fs.readFileSync('Discord.config'))
 var audioList = {};
 
+// set up data persistance
+const storage = require("node-persist");
+var usage = {};
+function setupStorage() {
+    await storage.init();
+    // clip usage: hash of name => counter
+    usage = await storage.getItem("usage");
+    if (!usage) {
+        usage = {};
+        await storage.setItem("usage", usage);
+    }
+}
+function incrementUsage(name) {
+    if (!usage[name]) {
+        usage[name] = 0;
+    }
+    usage[name] += 1;
+    await storage.setItem("usage", usage);
+}
 
+setupStorage();
 
 client.connect({
   // replace this sample token
@@ -111,6 +131,8 @@ function play(message) {
 		message.reply("Audio Clip " + playCommand + " Not Found");
 		return;
 	}
+
+	incrementUsage(playCommand);
 
 	var mp3decoder = new lame.Decoder();
 	mp3decoder.on('format', decode);
